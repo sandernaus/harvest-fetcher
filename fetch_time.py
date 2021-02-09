@@ -4,65 +4,94 @@
 """Module documentation goes here
    and here
    and ...
+
+   TODO:
+   - Add proper error handling
+   - Update documentation
+   - print nice table output
+   - refactor variable name
 """
 
-import os
-import sys
 import yaml
 import requests
 import calendar
-import datetime
-import json
 
-# TODO
-# 1. Convert to functions
-# 2. What happens if .secret file does not exist
-# 3. Allow parameters
+def main(year:int=2020,file='.secret.yml'):
 
-secret_yaml_file = open(".secret.yml")
-parsed_yaml_file = yaml.load(secret_yaml_file, Loader=yaml.FullLoader)
+    secret_file = load_secret(
+        file = file
+    )
 
-# print ('The user ID is', parsed_yaml_file['userid'])
-# print ('The token is', parsed_yaml_file['token'])
+    months=[1,2,3,4,5,6,7,8,9,10,11,12]
 
-userid = str(parsed_yaml_file['userid'])
-token = 'Bearer ' + str(parsed_yaml_file['token'])
+    for i in months:
+        time_entries = get_time_entries(
+            userid = str(secret_file['userid']),
+            token =  str(secret_file['token']),
+            month = i,
+            year = year
+        )
 
-url = 'https://api.harvestapp.com/api/v2/time_entries'
-headers = {'Harvest-Account-ID': userid, 'Authorization': token, 'User-Agent': 'MyApp', 'Content-Type': 'application/json'}
-# print (headers)
-r = requests.get(url, headers=headers, json={'from': '2020-07-01', 'to': '2020-07-31'})
+        workingdays_month = workinghours_month(
+            month = i,
+            year = year
+        )
 
-if r.status_code != 200:
-    # This means something went wrong.
-    raise ApiError('GET /time_entries {}'.format(r.status_code))
-jsonResponse = r.json()
-# print (json.dumps(r.json(), indent=2))
-# print(jsonResponse["time_entries"])
-sum = 0
-for time_entry in jsonResponse["time_entries"]:
-    sum = sum + time_entry["hours"]
+        print('Worked hours ' + str(time_entries))
 
-print(sum)
+        print('Actual working hours ' + str(workingdays_month))
 
+        print('Difference ' + str(time_entries-workingdays_month))
 
+def load_secret(file):
+    try:
+        secret_yaml_file = open(file)
 
-# Calculate working days per month
-# Calculate wored days per month
-# Diff per month
+        parsed_yaml_file = yaml.load(secret_yaml_file, Loader=yaml.FullLoader)
 
-class workingdays_month:
-  def __init__(self, month, year):
-    self.month = month
-    self.year = year
+        return parsed_yaml_file
+
+    except:
+        print ('Secret file not found')
+
+def get_time_entries(userid:str,token:str,month:int,year:int):
+
+    token = 'Bearer ' + token
+
+    get_last_day = calendar.monthrange(year, month)[1]
+
+    if len(str(month)) == 1:
+        month = '0' + str(month)
+    else:
+        month = str(month)
+
+    year = str(year)
+
+    first_day = year + '-' + month + '-01'
+    last_day = year + '-' + month + '-' + str(get_last_day)
+
+    url = 'https://api.harvestapp.com/api/v2/time_entries'
+    headers = {'Harvest-Account-ID': userid, 'Authorization': token, 'User-Agent': 'MyApp', 'Content-Type': 'application/json'}
+    r = requests.get(url, headers=headers, json={'from': first_day, 'to': last_day})
+
+    if r.status_code != 200:
+        # This means something went wrong.
+        raise ApiError('GET /time_entries {}'.format(r.status_code))
+    jsonResponse = r.json()
+    sum = 0
+    for time_entry in jsonResponse["time_entries"]:
+        sum = sum + time_entry["hours"]
+
+    return sum
+
+def workinghours_month(month, year):
 
     cal = calendar.Calendar()
-    working_days = len([x for x in cal.itermonthdays2(self.year, self.month) if x[0] !=0 and x[1] < 5])
-    print ("Total working days this month: " + str(working_days))
+    working_days = len([x for x in cal.itermonthdays2(year, month) if x[0] !=0 and x[1] < 5])
 
-    return working_days
+    workinghours_month = (working_days * 8 )
 
-month = workingdays_month(7, 2020)
+    return workinghours_month
 
-workinghours_month = (workingdays_month(7, 2020) | int * 8 )
-print(workinghours_month)
+if __name__ == "__main__":
+    main()

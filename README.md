@@ -2,6 +2,8 @@
 
 Tool to fetch registered time entries from your harvest account and store in DB.
 
+A userid and token are required to use the API. This information can be created in the [developers section](https://id.getharvest.com/developers) of the harvest account
+
 ## Dependencies
 
 ```bash
